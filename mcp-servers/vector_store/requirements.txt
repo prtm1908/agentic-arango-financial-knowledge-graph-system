@@ -1,0 +1,6 @@
+mcp
+qdrant-client
+cohere
+pydantic
+python-dotenv
+redis

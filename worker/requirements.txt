@@ -1,0 +1,12 @@
+redis
+pydantic
+python-dotenv
+mcp
+qdrant-client
+cohere
+google-genai
+PyMuPDF
+Pillow
+pdf2image
+openpyxl
+azure-ai-documentintelligence

@@ -1,0 +1,122 @@
+services:
+  # Graph Database
+  arangodb:
+    image: arangodb:3.11
+    container_name: arangodb
+    environment:
+      ARANGO_ROOT_PASSWORD: ${ARANGO_ROOT_PASSWORD}
+    ports:
+      - "8529:8529"
+    volumes:
+      - arangodb_data:/var/lib/arangodb3
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8529/_admin/server/availability"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Vector Database
+  qdrant:
+    image: qdrant/qdrant:v1.12.0
+    container_name: qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    environment:
+      QDRANT__SERVICE__GRPC_PORT: 6334
+
+  # Message Queue + PubSub
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: backend
+    ports:
+      - "8000:8000"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - ARANGO_URL=http://arangodb:8529
+      - ARANGO_DB=financial_kg
+      - ARANGO_USERNAME=root
+      - ARANGO_PASSWORD=${ARANGO_ROOT_PASSWORD}
+      - ARANGO_SEED_DATA=true
+      - CHATS_DIR=/chats
+    volumes:
+      - ./chats:/chats
+    depends_on:
+      arangodb:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      qdrant:
+        condition: service_started
+
+  # Queue Worker (runs OpenCode)
+  worker:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+    container_name: worker
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - ARANGO_URL=http://arangodb:8529
+      - ARANGO_DB=financial_kg
+      - ARANGO_USERNAME=root
+      - ARANGO_PASSWORD=${ARANGO_ROOT_PASSWORD}
+      - QDRANT_URL=http://qdrant:6333
+      - COHERE_API_KEY=${COHERE_API_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - GEMINI_API_KEY=${GOOGLE_API_KEY}
+      - OPENCODE_CONFIG_DIR=/opencode-config
+      - CHATS_DIR=/chats
+      - OUTPUT_PATH=/output/exports
+      - CITATION_OUTPUT_PATH=/output/citations
+      # Azure Document Intelligence (for citations)
+      - AZURE_DI_ENDPOINT=${AZURE_DI_ENDPOINT}
+      - AZURE_DI_KEY=${AZURE_DI_KEY}
+    volumes:
+      - ./data/filings:/data/filings
+      - ./data/page_images:/data/page_images
+      - ./output:/output
+      - ./mcp-servers:/mcp-servers:ro
+      - ./opencode-config:/opencode-config
+      - ./chats:/chats
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - redis
+      - arangodb
+      - qdrant
+
+  # Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://backend:8000
+    depends_on:
+      - backend
+
+volumes:
+  arangodb_data:
+  qdrant_data:
+  redis_data:
+
+networks:
+  default:
+    name: financial-kg-network

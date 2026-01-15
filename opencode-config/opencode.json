@@ -1,0 +1,123 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "google/gemini-3-flash-preview",
+  "provider": {
+    "google": {
+      "options": {
+        "apiKey": "{env:GOOGLE_API_KEY}"
+      }
+    }
+  },
+  "tools": {
+    "arangodb_*": false,
+    "metric_extractor_*": false,
+    "excel_export_*": false,
+    "citation_*": false
+  },
+  "agent": {
+    "router": {
+      "tools": {},
+      "permission": {
+        "task": {
+          "*": "allow"
+        }
+      }
+    },
+    "knowledge-graph": {
+      "tools": {
+        "arangodb_*": true
+      },
+      "permission": {
+        "task": {
+          "*": "deny"
+        }
+      }
+    },
+    "metric-extractor": {
+      "tools": {
+        "metric_extractor_*": true
+      },
+      "permission": {
+        "task": {
+          "*": "deny"
+        }
+      }
+    },
+    "citation": {
+      "tools": {
+        "citation_*": true
+      },
+      "permission": {
+        "task": {
+          "*": "deny"
+        }
+      }
+    },
+    "exporter": {
+      "tools": {
+        "excel_export_*": true
+      },
+      "permission": {
+        "task": {
+          "*": "deny"
+        }
+      }
+    }
+  },
+  "mcp": {
+    "arangodb": {
+      "type": "local",
+      "command": ["docker", "run", "-i", "--rm",
+        "--network", "financial-kg-network",
+        "-e", "ARANGO_HOSTS=http://arangodb:8529",
+        "-e", "ARANGO_ROOT_USERNAME=root",
+        "-e", "ARANGO_ROOT_PASSWORD={env:ARANGO_PASSWORD}",
+        "-e", "ARANGO_DEFAULT_DB_NAME={env:ARANGO_DB}",
+        "arangodb/mcp-arangodb:latest"
+      ],
+      "enabled": true
+    },
+    "metric_extractor": {
+      "type": "local",
+      "command": ["python", "/mcp-servers/metric_extractor/server.py"],
+      "environment": {
+        "GOOGLE_API_KEY": "{env:GOOGLE_API_KEY}",
+        "COHERE_API_KEY": "{env:COHERE_API_KEY}",
+        "QDRANT_URL": "{env:QDRANT_URL}",
+        "FILINGS_PATH": "/data/filings",
+        "PDF_DOWNLOAD_PATH": "/data/filings/downloads",
+        "PDF_PAGE_IMAGE_ROOT": "/data/page_images",
+        "REDIS_URL": "{env:REDIS_URL}",
+        "OPENCODE_JOB_ID": "{env:OPENCODE_JOB_ID}",
+        "OPENCODE_AGENT_NAME": "metric-extractor"
+      },
+      "enabled": true
+    },
+    "excel_export": {
+      "type": "local",
+      "command": ["python", "/mcp-servers/excel_export/server.py"],
+      "environment": {
+        "OUTPUT_PATH": "/output/exports",
+        "REDIS_URL": "{env:REDIS_URL}",
+        "OPENCODE_JOB_ID": "{env:OPENCODE_JOB_ID}",
+        "OPENCODE_AGENT_NAME": "exporter"
+      },
+      "enabled": true
+    },
+    "citation": {
+      "type": "local",
+      "command": ["python", "/mcp-servers/citation/server.py"],
+      "environment": {
+        "AZURE_DI_ENDPOINT": "{env:AZURE_DI_ENDPOINT}",
+        "AZURE_DI_KEY": "{env:AZURE_DI_KEY}",
+        "FILINGS_PATH": "/data/filings",
+        "PDF_DOWNLOAD_PATH": "/data/filings/downloads",
+        "CITATION_OUTPUT_PATH": "/output/citations",
+        "REDIS_URL": "{env:REDIS_URL}",
+        "OPENCODE_JOB_ID": "{env:OPENCODE_JOB_ID}",
+        "OPENCODE_AGENT_NAME": "citation"
+      },
+      "enabled": true
+    }
+  }
+}

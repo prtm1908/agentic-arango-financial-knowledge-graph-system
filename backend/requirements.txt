@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+redis
+pydantic
+pydantic-settings
+python-arango
+sse-starlette
+python-dotenv

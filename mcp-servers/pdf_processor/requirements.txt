@@ -1,0 +1,6 @@
+mcp
+pdf2image
+PyMuPDF
+Pillow
+pydantic
+redis

@@ -1,0 +1,4 @@
+mcp
+openpyxl
+pydantic
+redis

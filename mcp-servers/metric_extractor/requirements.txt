@@ -1,0 +1,8 @@
+mcp
+google-genai
+pydantic
+python-dotenv
+redis
+PyMuPDF
+cohere
+qdrant-client
